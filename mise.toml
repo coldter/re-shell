@@ -1,0 +1,180 @@
+min_version = { hard = "2026.8.0" }
+
+[settings]
+lockfile = true
+
+# Project-root lock policy; unlike [settings].locked, this does not pull global
+# tools into this project's lock policy.
+[tool_config]
+locked = true
+
+[tool_alias]
+# GitHub release assets
+ghidra = "github:NationalSecurityAgency/ghidra"
+jadx = "github:skylot/jadx"
+dex2jar = "github:pxb1988/dex2jar"
+pe-bear = "github:hasherezade/pe-bear"
+floss = "github:mandiant/flare-floss"
+payload-dumper-go = "github:ssut/payload-dumper-go"
+curl-impersonate = "github:lexiforest/curl-impersonate"
+yr = "github:VirusTotal/yara-x"
+rizin = "github:rizinorg/rizin"
+
+# PyPI applications (pipx uses uvx automatically when uv is installed)
+frida-tools = "pipx:frida-tools"
+apkid = "pipx:apkid"
+apksigcopier = "pipx:apksigcopier"
+jnitrace = "pipx:jnitrace"
+trueseeing = "pipx:trueseeing"
+quark-engine = "pipx:quark-engine"
+koodousfinder = "pipx:koodousfinder"
+volatility3 = "pipx:volatility3"
+httpie = "pipx:httpie"
+hid-tools = "pipx:hid-tools"
+# binwalk: upstream ReFirmLabs/binwalk retagged v3.1.0 onto the Rust rewrite
+# (no Python packaging remains in-repo, PyPI has stale 2.1.0). Use the OS
+# package until the Rust v4 ships installable binaries; see MISE-MIGRATION.md §9.
+
+# Standalone npm applications
+apk-mitm = "npm:apk-mitm"
+asar = "npm:asar"
+
+# Aqua entries without a useful short name
+grpcui = "aqua:fullstorydev/grpcui"
+pup = "aqua:ericchiang/pup"
+# aqua's scrcpy entry stops at v2/3; v4.x via GitHub release assets
+scrcpy = "github:Genymobile/scrcpy"
+
+[tools]
+# Node 24 is the current LTS line; Ghidra 12.1 requires JDK 21.
+# Python 3.13: 3.14 is blocked by missing cp314 wheels for yara-python and
+# yara-python-dex (apkid dep); revisit when upstream ships cp314.
+python = "3.13"
+node = "24"
+java = "temurin-21"
+uv = "latest"
+
+# Portable binary releases / registry tools
+ghidra = "latest"
+jadx = "latest"
+dex2jar = "latest"
+pe-bear = { version = "latest", matching = "qt6.4.2_x64_linux" }
+floss = { version = "latest", matching = "linux" }
+payload-dumper-go = "latest"
+curl-impersonate = { version = "latest", matching_regex = "^curl-impersonate-v", prerelease = true }
+yr = { version = "latest", matching = "linux" }
+rizin = { version = "latest", matching = "-static-x86_64" }
+grpcui = "latest"
+pup = "latest"
+protoc = "latest"
+grpcurl = "latest"
+websocat = "latest"
+upx = "latest"
+cmake = "latest"
+gcc-arm-none-eabi = "latest"
+scrcpy = "latest"
+jq = "latest"
+
+# Python CLI applications. `depends` controls install order only.
+frida-tools = { version = "latest", depends = ["uv", "python"] }
+apkid = { version = "latest", depends = ["uv", "python"] }
+apksigcopier = { version = "latest", depends = ["uv", "python"] }
+jnitrace = { version = "latest", depends = ["uv", "python"] }
+trueseeing = { version = "latest", depends = ["uv", "python"] }
+quark-engine = { version = "latest", depends = ["uv", "python"] }
+koodousfinder = { version = "latest", depends = ["uv", "python"] }
+volatility3 = { version = "latest", depends = ["uv", "python"] }
+httpie = { version = "latest", depends = ["uv", "python"] }
+hid-tools = { version = "latest", depends = ["uv", "python"] }
+mitmproxy = { version = "latest", depends = ["uv", "python"] }
+
+# The npm backend gives each CLI its own mise-managed install.
+apk-mitm = { version = "latest", depends = ["node"] }
+asar = { version = "latest", depends = ["node"] }
+
+[env]
+_.path = ["{{ config_root }}/.venv/bin"]
+PYTHONPATH = false
+VIRTUAL_ENV = "{{ config_root }}/.venv"
+# JVM scratch goes to the project dir (setup-local creates tmp/jtmp); keeps
+# pyghidra/ghidra temp files off the small shared /tmp.
+_JAVA_OPTIONS = "-Djava.io.tmpdir={{ config_root }}/tmp/jtmp"
+GHIDRA_INSTALL_DIR = { value = "{{ tools.ghidra.path }}", tools = true }
+GHIDRA_JAVA_HOME = { value = "{{ env.JAVA_HOME }}", tools = true }
+PICO_SDK_PATH = "{{ config_root }}/.mise/sources/pico-sdk"
+
+[tasks.setup]
+description = "Prepare Python, Pico SDK, wordlists, and local links"
+depends = ["setup-deps", "setup-pico", "setup-wordlists", "setup-local"]
+
+[tasks.setup-deps]
+description = "Sync locked Python project dependencies"
+sources = ["pyproject.toml", "uv.lock"]
+outputs = [".venv/.mise-synced"]
+run = "uv sync --locked && touch .venv/.mise-synced"
+
+[tasks.setup-pico]
+description = "Fetch the pinned Pico SDK into project-local state"
+sources = ["mise.toml", "sources.lock"]
+outputs = [".mise/sources/.pico-sdk-ready"]
+run = '''
+set -e
+src=".mise/sources/pico-sdk"
+ref="$(awk '$1 == "pico-sdk" { print $2 }' sources.lock)"
+commit="$(awk '$1 == "pico-sdk" { print $3 }' sources.lock)"
+if [ ! -f .mise/sources/.pico-sdk-ready ]; then
+  if [ ! -f "$src/pico_sdk_init.cmake" ]; then
+    mkdir -p .mise/sources
+    git clone --quiet --depth 1 --branch "$ref" https://github.com/raspberrypi/pico-sdk "$src"
+  fi
+  git -C "$src" checkout --quiet --detach "$commit"
+  test "$(git -C "$src" rev-parse HEAD)" = "$commit"
+  touch .mise/sources/.pico-sdk-ready
+fi
+'''
+
+[tasks.setup-wordlists]
+description = "Fetch sparse SecLists and extract rockyou"
+sources = ["mise.toml", "sources.lock"]
+outputs = [".mise/sources/.wordlists-ready"]
+run = '''
+set -e
+if [ ! -f .mise/sources/.wordlists-ready ]; then
+  ref="$(awk '$1 == "SecLists" { print $2 }' sources.lock)"
+  commit="$(awk '$1 == "SecLists" { print $3 }' sources.lock)"
+  mkdir -p .mise/sources
+  if [ ! -d .mise/sources/SecLists/.git ]; then
+    git clone --quiet --depth 1 --filter=blob:none --sparse --branch "$ref" \
+      https://github.com/danielmiessler/SecLists .mise/sources/SecLists
+  fi
+  git -C .mise/sources/SecLists checkout --quiet --detach "$commit"
+  test "$(git -C .mise/sources/SecLists rev-parse HEAD)" = "$commit"
+  git -C .mise/sources/SecLists sparse-checkout set Passwords Discovery Fuzzing
+  if [ ! -f .mise/sources/rockyou.txt ]; then
+    tar -xzf .mise/sources/SecLists/Passwords/Leaked-Databases/rockyou.txt.tar.gz \
+      -C .mise/sources rockyou.txt
+  fi
+  touch .mise/sources/.wordlists-ready
+fi
+'''
+
+[tasks.setup-local]
+description = "Create scratch space and wordlist links"
+run = '''
+set -e
+mkdir -p tmp/jtmp wordlists
+ln -sfn "$PWD/.mise/sources/SecLists" wordlists/seclists
+ln -sfn "$PWD/.mise/sources/rockyou.txt" wordlists/rockyou.txt
+for pair in \
+  "/usr/share/hashcat/rules:hashcat-rules" \
+  "/usr/share/john/rules:john-rules" \
+  "/usr/share/john/rules/best64.rule:best64.rule" \
+  "/usr/share/john/password.lst:john-password.lst"; do
+  src="${pair%%:*}"; name="${pair##*:}"
+  if [ -e "$src" ]; then ln -sfn "$src" "wordlists/$name"; fi
+done
+'''
+
+[tasks.check-system]
+description = "Report optional OS, hardware, GUI, and daemon tools (never install)"
+run = "scripts/check-system.sh"

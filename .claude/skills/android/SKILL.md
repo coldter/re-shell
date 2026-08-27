@@ -151,7 +151,7 @@ mitmproxy --listen-port 8080
 
 ## Notes
 
-- `androguard` is excluded from the environment because its `dataset` dependency is currently marked broken in nixpkgs. `pyaxmlparser` is included as a lightweight alternative for Android XML parsing. Re-add androguard when the upstream issue is resolved.
+- `androguard` is excluded from the environment because its `dataset` dependency is currently broken upstream. `pyaxmlparser` is included as a lightweight alternative for Android XML parsing. Re-add androguard when the upstream issue is resolved.
 - Frida requires a `frida-server` binary running on the target Android device (matching the frida-tools version).
 - mitmproxy certificate must be installed on the target device for HTTPS interception. Push it via: `adb push ~/.mitmproxy/mitmproxy-ca-cert.cer /sdcard/`.
 - bytecode-viewer and jadx-gui require a display server. On headless/WSL systems, use an X server (e.g., VcXsrv) or use the CLI equivalents.

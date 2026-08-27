@@ -1,10 +1,12 @@
 # Build outputs / cache
-/.direnv
-/node_modules
-/result
 /.ruff_cache
 
-# Wordlists symlink (created by devShell shellHook -> Nix store)
+# Mise-managed project state
+/.venv
+/.mise
+/.agents
+
+# Wordlists symlink (created by mise run setup-local -> .mise/sources/)
 /wordlists
 
 # Claude's temp directory
@@ -24,3 +26,4 @@
 *.exe
 *.so
 *.uf2
+*.quark.log

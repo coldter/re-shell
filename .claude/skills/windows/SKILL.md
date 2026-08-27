@@ -230,7 +230,7 @@ mu.emu_start(0x1000, 0x1000 + len(code_bytes))
 ## Notes
 
 - PE-bear, Avalonia ILSpy, and ImHex require a display server for their GUIs. On headless/WSL systems, use an X server (e.g., VcXsrv) or use CLI alternatives (`diec`, `ilspycmd`, Python libraries).
-- `retdec` (RetDec decompiler) is not currently installed but is available in nixpkgs (`pkgs.retdec`). It consumes significant memory; use Ghidra's decompiler for most analysis.
+- `retdec` (RetDec decompiler) is not currently installed and no maintained Linux binaries ship upstream. It consumes significant memory; use Ghidra's decompiler for most analysis.
 - Volatility 3 plugins are under the `windows.` namespace for Windows memory analysis. Use `vol --help` to list all available plugins.
 - `oletools` provides both Python APIs and CLI entry points (`olevba`, `oleid`, `rtfobj`, etc.) for analyzing Office/OLE documents.
 - `unicorn` is general-purpose but particularly useful for Windows x86/x64 shellcode and malware analysis. `capstone` is documented in `CLAUDE.md` with the other general-purpose Python libraries.

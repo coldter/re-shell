@@ -1,6 +1,6 @@
 # Reverse Engineering Environment
 
-Multi-discipline Nix flake-based development shell for reverse engineering. Enter the environment with `nix develop` or via direnv.
+Multi-discipline [mise](https://mise.jdx.dev)-based development environment for reverse engineering. Enter the environment with `mise activate` (shell) or `mise exec/run` for one-off commands; see `mise.toml`.
 
 ## Skill System
 
@@ -17,10 +17,10 @@ This environment is organized into a **general-purpose core** (this file) and **
 ### Adding a New Discipline
 
 1. Create `.claude/skills/<discipline>/SKILL.md` with front matter (`name`, `user-invocable: false`, `description` with trigger keywords).
-2. Add discipline-specific tools to `flake.nix` under a `# --- <Discipline>:` comment section.
+2. Add discipline-specific tools to `mise.toml` under a `# --- <Discipline>:` comment section (or aqua/pipx/npm backends).
 3. Add discipline-specific Python/Node dependencies to `pyproject.toml`/`package.json`.
 4. Document the skill in the table above.
-5. Tools shared across disciplines stay in the general sections of `flake.nix` and this file.
+5. Tools shared across disciplines stay in the general sections of `mise.toml` and this file.
 
 ## Output Directory Convention
 
@@ -41,7 +41,7 @@ Never leave tool output in the repo root or in ad-hoc directories outside these 
 
 ## Environment Structure
 
-The dev shell is defined in `flake.nix` and organized into tool categories. Python dependencies are declared in `pyproject.toml`, locked by `uv.lock`, and built into a Nix virtualenv via [uv2nix](https://github.com/pyproject-nix/uv2nix). Node.js dependencies are declared in `package.json`, locked by `package-lock.json`, and built via `importNpmLock`; bin scripts from npm packages are automatically on PATH. Ghidra's JDK is configured via `GHIDRA_JAVA_HOME`.
+The dev environment is defined in `mise.toml` and organized into tool categories (backends: `github:`, `aqua:`, `pipx:`, `npm:`, core runtimes). Python dependencies are declared in `pyproject.toml`, locked by `uv.lock`, and synced into the project `.venv` by `uv sync` (via `mise run setup-deps`). Ghidra's JDK is configured via `GHIDRA_JAVA_HOME`; the Ghidra install path is wired through `GHIDRA_INSTALL_DIR` for pyghidra.
 
 ## Installed Tools (General-Purpose)
 
@@ -79,7 +79,7 @@ Discipline-specific tools are documented in their respective skill files. The to
 | i2c-tools | `i2ctransfer -y N w5@0x37 ...` | Raw I2C frames; needed for 16-bit/vendor DDC/CI opcodes ddcutil won't emit |
 
 Both need the `i2c-dev` kernel module loaded (`sudo modprobe i2c-dev`) and RW access to
-`/dev/i2c-*`. On NixOS, `hardware.i2c.enable = true;` loads it and grants the `i2c` group access.
+`/dev/i2c-*`.
 
 ### USB
 
@@ -98,13 +98,11 @@ Reading and writing hidraw needs permission on the node: run as root, or add a u
 Plain `open()` plus `select()` on the hidraw node is enough for feature-free report I/O; no
 extra Python binding is needed.
 
-Raw USB from Python uses `pyusb` over the libusb-1.0 backend. `ctypes.util.find_library`
-finds nothing on NixOS, so the dev shell exports `LIBUSB1_SO`; pass it explicitly:
+Raw USB from Python uses `pyusb` over the libusb-1.0 backend. The default backend discovery usually finds `libusb-1.0.so.0` directly via `ldconfig`:
 
 ```python
-import os, usb.core, usb.backend.libusb1 as lb
-be = lb.get_backend(find_library=lambda _: os.environ["LIBUSB1_SO"])
-dev = usb.core.find(idVendor=0x1234, idProduct=0x5678, backend=be)
+import usb.core
+dev = usb.core.find(idVendor=0x1234, idProduct=0x5678)
 ```
 
 Control and bulk transfers need write access to `/dev/bus/usb/*`: run as root, or add a
@@ -113,7 +111,7 @@ switches USB modes, so match on all of the identities it can present.
 
 ### Password / Hash Cracking
 
-Wordlists and rules are exposed as a stable dir-of-symlinks at `wordlists/` in the repo root (gitignored, points into the Nix store) so no `/nix/store` spelunking is needed. Contents: `wordlists/rockyou.txt`, `wordlists/seclists/` (full SecLists tree), `wordlists/best64.rule`, `wordlists/hashcat-rules/`, `wordlists/john-rules/`, `wordlists/john-password.lst`. To add more, edit the `wordlists` linkFarm in `flake.nix`.
+Wordlists and rules are exposed as a stable dir-of-symlinks at `wordlists/` in the repo root (gitignored). Sources live in `.mise/sources/` (fetched by `mise run setup-wordlists`) plus system-installed `hashcat`/`john` rules when present: `wordlists/rockyou.txt`, `wordlists/seclists/` (sparse SecLists tree), `wordlists/best64.rule`, `wordlists/hashcat-rules/`, `wordlists/john-rules/`, `wordlists/john-password.lst`. To add more, edit `sources.lock` and the related setup task in `mise.toml`.
 
 | Tool | Command | Description |
 |------|---------|-------------|
@@ -170,8 +168,7 @@ takes under a second, proving the right one may not finish.
 Find a network device before you scan for it. Most consumer hardware advertises
 itself over mDNS, so `avahi-browse -art` names the device and its port in one
 step. Use `nmap` when the device does not advertise, or when the service name is
-unknown. `avahi-browse` needs the avahi daemon on the host
-(`services.avahi.enable = true;` on NixOS).
+unknown.
 
 ### General Utilities
 
@@ -185,12 +182,12 @@ unknown. `avahi-browse` needs the avahi daemon on the host
 | exiftool | `exiftool file` | Read/write embedded metadata (images, documents, firmware) |
 | innoextract | `innoextract -e -d out setup.exe` | Extract Inno Setup installers (common packaging for vendor firmware update tools) |
 | asar | `asar extract app.asar tmp/app/` | Unpack Electron `app.asar` archives (`asar list` to inspect first) |
-| uv | `uv add <pkg>` | Python package manager; add dependencies to pyproject.toml and uv.lock, then `direnv reload` to rebuild |
-| npm | `npm install <pkg>` | Node.js package manager; add dependencies to package.json and package-lock.json, then `direnv reload` to rebuild |
+| uv | `uv add <pkg>` | Python package manager; add dependencies to pyproject.toml and uv.lock, then `mise run setup-deps` to sync |
+| npm | `npm install <pkg>` | Node package manager; add dependencies to package.json and package-lock.json |
 
 ### Python Scripting Environment
 
-Python dependencies are managed via `pyproject.toml` and `uv.lock`, built into a Nix virtualenv by uv2nix. The following general-purpose libraries are pre-installed:
+Python dependencies are managed via `pyproject.toml` and `uv.lock`, synced into the project `.venv` by `uv sync` (mise sets `VIRTUAL_ENV` and puts `.venv/bin` on PATH). The following general-purpose libraries are pre-installed:
 
 | Library | Import | Description |
 |---------|--------|-------------|
@@ -209,13 +206,13 @@ Use `capstone` for a quick look at a small number of instructions, for example t
 identify a patch site or to read a function prologue. Ghidra gives better results
 on a full image, but a large blob can need more than an hour to analyze.
 
-Discipline-specific Python libraries are listed in their respective skill files. To add a Python package permanently, run `uv add <package>` then `direnv reload`. See [Augmenting the Environment](#augmenting-the-environment).
+Discipline-specific Python libraries are listed in their respective skill files. To add a Python package permanently, run `uv add <package>` then `mise run setup-deps`. See [Augmenting the Environment](#augmenting-the-environment).
 
 ### Node.js Scripting Environment
 
-Node.js dependencies are managed via `package.json` and `package-lock.json`, built into a Nix-managed `node_modules` by `importNpmLock`. Bin scripts from installed packages are automatically available on PATH via `linkNodeModulesHook`.
+Node.js dependencies are managed via `package.json` and `package-lock.json` inside the project (`node_modules/` is gitignored). Use mise's `npm:` backend for standalone Node CLI tools (see `mise.toml` for `apk-mitm`/`asar`).
 
-Discipline-specific Node.js tools are listed in their respective skill files. To add a Node.js package permanently, run `npm install <package>` then `direnv reload`. See [Augmenting the Environment](#augmenting-the-environment). Note that npm packages with native install scripts that download binaries (e.g., the `frida` npm package) will fail in the Nix sandbox -- use nixpkgs equivalents for those.
+Discipline-specific Node.js tools are listed in their respective skill files. To add a Node.js package permanently, run `npm install <package>` then `mise run setup-deps`. See [Augmenting the Environment](#augmenting-the-environment). For Node CLIs that belong in the toolchain (mise-managed, like `apk-mitm`), add an `npm:` entry to `mise.toml` instead.
 
 ## Common Workflows
 
@@ -233,7 +230,7 @@ ghidra-analyzeHeadless tmp/ghidra_project ProjectName -import binary -postScript
 
 `pyghidra.start()` requires `GHIDRA_INSTALL_DIR` to point at the Ghidra install. The dev shell sets this automatically (along with `GHIDRA_JAVA_HOME`), so `import pyghidra; pyghidra.start()` works directly -- no manual `export GHIDRA_INSTALL_DIR=...` prefix needed.
 
-The shell also exports `_JAVA_OPTIONS=-Djava.io.tmpdir=$PWD/tmp/jtmp`, which moves JVM scratch
+The shell also exports `_JAVA_OPTIONS=-Djava.io.tmpdir=$PWD/tmp/jtmp` (declared in `mise.toml` `[env]`), which moves JVM scratch files off the shared `/tmp` tmpfs and into `tmp/jtmp` (created by `mise run setup`).
 files off the shared `/tmp` tmpfs. Without it, `pyghidra.start()` fails on large programs. Every
 `java` process prints a `Picked up _JAVA_OPTIONS:` line to stderr as a result; ignore it.
 
@@ -280,14 +277,14 @@ tshark -i any -w tmp/capture.pcap
 
 ### Adding Python packages with uv
 
-Python dependencies are managed through `pyproject.toml` and built natively by Nix via uv2nix. To add a package:
+Python dependencies are managed through `pyproject.toml` and `uv.lock`, synced into `.venv` by `uv sync`. To add a package:
 
 ```sh
 # Add a dependency (updates pyproject.toml and uv.lock)
 uv add protobuf
 
-# Rebuild the Nix environment with the new dependency
-direnv reload
+# Sync the venv (run from the repo; also done by `mise run setup-deps`)
+mise run setup-deps
 ```
 
 For temporary/one-off usage without modifying the project, use `uv run`:
@@ -302,17 +299,14 @@ uv run --with pycryptodome ipython
 
 ### Adding Node.js packages with npm
 
-Node.js dependencies are managed through `package.json` and built natively by Nix via `importNpmLock`. To add a package:
+Node.js dependencies are managed through `package.json` and `package-lock.json` inside the project. To add a package:
 
 ```sh
 # Add a dependency (updates package.json and package-lock.json)
 npm install some-tool
-
-# Rebuild the Nix environment with the new dependency
-direnv reload
 ```
 
-Bin scripts from installed packages are automatically available on PATH (e.g., installing a package that provides a CLI tool makes it directly runnable).
+Bin scripts from installed packages are automatically available on PATH via the project `node_modules/.bin` entry (added by `mise.toml` `[env] _.path`).
 
 For temporary/one-off usage without modifying the project, use `npx`:
 
@@ -335,26 +329,25 @@ When a task calls for a tool or library not currently in the dev shell, you have
 **For Python libraries**, use uv to add them to `pyproject.toml`:
 
 1. Run `uv add <package>` (updates `pyproject.toml` and `uv.lock`).
-2. Run `direnv reload` to rebuild the Nix virtualenv with the new dependency.
-3. If the package needs native libraries or build fixups, add overrides to the `dependencyFixups` section in `flake.nix`. See comments there for examples.
+2. Run `mise run setup-deps` to sync `.venv`.
+3. If the package needs system libraries (e.g., a C dependency), install them via the OS package manager and note it here.
 4. **Update the appropriate skill file or `CLAUDE.md`** to document the new library.
 
 **For Node.js packages**, use npm to add them to `package.json`:
 
 1. Run `npm install <package>` (updates `package.json` and `package-lock.json`).
-2. Run `direnv reload` to rebuild the Nix node_modules with the new dependency.
-3. **Update the appropriate skill file or `CLAUDE.md`** to document the new tool.
+2. **Update the appropriate skill file or `CLAUDE.md`** to document the new tool.
 
-**For non-Python/non-Node tools**, add them to `flake.nix`:
+**For non-Python/non-Node tools (CLIs)**, add them to `mise.toml`:
 
-1. **Search nixpkgs** for the package using the `/nix-package-search` skill (e.g., `/nix-package-search protobuf`).
-2. **Edit `flake.nix`** to add the package to the `packages` list under the appropriate category section.
-3. **Reload the environment** by running `direnv reload` (or exiting and re-entering `nix develop`).
-4. **Update the appropriate skill file or `CLAUDE.md`** to document the new tool so documentation stays in sync with the flake.
+1. Look up the tool in the mise registry: `mise registry` / `mise search <name>`; or use a backend directly (`github:owner/repo`, `aqua:owner/repo`, `pipx:<pkg>`, `npm:<pkg>`).
+2. Add an alias + `[tools]` entry under the appropriate category section; add `depends = [...]` for pipx/npm tools.
+3. Run `mise install` (from the repo) and `mise lock` to regenerate `mise.lock`.
+4. **Update the appropriate skill file or `CLAUDE.md`** to document the new tool so documentation stays in sync with the config.
 
-You are encouraged to self-modify `flake.nix`, `pyproject.toml`, `package.json`, skill files, and this file whenever the analysis requires a tool that should be part of the standard environment. Keep the existing organizational structure (category comments, table format) when adding entries.
+You are encouraged to self-modify `mise.toml`, `pyproject.toml`, `package.json`, skill files, and this file whenever the analysis requires a tool that should be part of the standard environment. Keep the existing organizational structure (category comments, table format) when adding entries.
 
-**Important:** When documenting a new tool, verify that the actual binary name on PATH matches what you write in the Command column. Nix package names often differ from binary names (e.g., `pkgs.aapt` provides `aapt2`, `pkgs.avalonia-ilspy` provides `ILSpy`, `pkgs.ghidra` wraps binaries with a `ghidra-` prefix). Run `which <command>` or check the package's `bin/` directory after `direnv reload` to confirm before documenting.
+**Important:** When documenting a new tool, verify that the actual binary name on PATH matches what you write in the Command column. Backend install dirs often differ from the command name (e.g., YARA-X exposes `yr`, dex2jar 2.4 exposes `dex-tools`, volatility3 exposes `vol`). Run `mise exec -- command -v <tool>` or check the install's bin directory after `mise install` to confirm before documenting.
 
 ## Notes
 
