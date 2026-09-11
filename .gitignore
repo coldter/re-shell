@@ -4,7 +4,10 @@
 # Mise-managed project state
 /.venv
 /.mise
-/.agents
+# .agents holds local agent state, but committed agent skills live under
+# .agents/skills/ (OpenCode discovers them alongside .claude/skills).
+/.agents/*
+!/.agents/skills/
 
 # Wordlists symlink (created by mise run setup-local -> .mise/sources/)
 /wordlists
