@@ -5,11 +5,17 @@ A mise-based reverse engineering environment designed for use with [Claude Code]
 ## Quick start
 
 ```sh
+# One-time: installs mise if you don't have it (https://mise.jdx.dev)
+curl https://mise.run | sh
+
 # One-time: activate mise in your interactive shell (already done on this machine)
 eval "$(mise activate bash)"
 
 # Enter the environment
 cd re-shell            # tools auto-install on first enter
+
+# First run only: approve this repo's mise.toml
+mise trust
 
 # Bootstrap project-local resources (venv, pico-sdk, wordlists)
 mise run setup

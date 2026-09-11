@@ -2,6 +2,13 @@
 # Informational checklist of OS/AUR-tier tools. Exits 0; never installs anything.
 set -u
 
+# The OS tier below is pacman/ldconfig-specific. On macOS the portable toolchain
+# comes from mise; see the darwin notes in CLAUDE.md.
+if [ "$(uname -s)" != "Linux" ]; then
+  echo "check-system: non-Linux host, skipping pacman/ldconfig checks (see CLAUDE.md for darwin notes)."
+  exit 0
+fi
+
 missing=()
 note() { printf '%-28s <- %s\n' "$1" "$2"; }
 
@@ -17,7 +24,9 @@ for c in "radare2:radare2" "rizin:rizin" "jq:jq" "nmap:nmap" "tshark:wireshark-c
   "binwalk:binwalk (AUR; Python v3 upstream moved to Rust v4)" \
   "exiftool:perl-image-exiftool" "wine:wine" "winetricks:winetricks" "cabextract:cabextract" \
   "msiinfo:msitools" "msiextract:msitools" "adb:android-tools" "fastboot:android-tools" \
-  "openssl:openssl" "sqlite3:sqlite" "file:file" "objdump:binutils" "xxd:vim-common" \
+  "openssl:openssl" "sqlite3:sqlite" "file:file" \
+  "objdump:binutils (host-only x86+BPF; xtensa via mise xtensa-esp-elf-objdump)" \
+  "xxd:vim-common" \
   "unzip:unzip" "7z:p7zip" "curl:curl" "ecputil:trellis (AUR prjtrellis-git)"; do
   check "${c%%:*}" "${c#*:}"
 done

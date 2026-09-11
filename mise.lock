@@ -7,6 +7,36 @@ version = "1.3.0"
 backend = "npm:apk-mitm"
 specifiers = ["latest"]
 
+[[tools.apkeep]]
+version = "1.0.0"
+backend = "github:EFForg/apkeep"
+specifiers = ["latest"]
+
+[tools.apkeep."platforms.linux-arm64"]
+checksum = "sha256:5410acebd1b69427adcf98ccfdda6fa4dd3201e0540e5e2c01037b68e0a84049"
+url = "https://github.com/EFForg/apkeep/releases/download/1.0.0/apkeep-aarch64-unknown-linux-gnu"
+url_api = "https://api.github.com/repos/EFForg/apkeep/releases/assets/412292638"
+
+[tools.apkeep."platforms.linux-arm64-musl"]
+checksum = "sha256:5410acebd1b69427adcf98ccfdda6fa4dd3201e0540e5e2c01037b68e0a84049"
+url = "https://github.com/EFForg/apkeep/releases/download/1.0.0/apkeep-aarch64-unknown-linux-gnu"
+url_api = "https://api.github.com/repos/EFForg/apkeep/releases/assets/412292638"
+
+[tools.apkeep."platforms.linux-x64"]
+checksum = "sha256:a23579a3ba366d25a6d69848189b983d65662f4ecf4b9e11e16510811659de4e"
+url = "https://github.com/EFForg/apkeep/releases/download/1.0.0/apkeep-x86_64-unknown-linux-gnu"
+url_api = "https://api.github.com/repos/EFForg/apkeep/releases/assets/412292686"
+
+[tools.apkeep."platforms.linux-x64-musl"]
+checksum = "sha256:a23579a3ba366d25a6d69848189b983d65662f4ecf4b9e11e16510811659de4e"
+url = "https://github.com/EFForg/apkeep/releases/download/1.0.0/apkeep-x86_64-unknown-linux-gnu"
+url_api = "https://api.github.com/repos/EFForg/apkeep/releases/assets/412292686"
+
+[tools.apkeep."platforms.windows-x64"]
+checksum = "sha256:9e321bab9fcc6bab6f6a779ae21d3611dfe6bf3bbecc13ffc9e57aa2db044e7f"
+url = "https://github.com/EFForg/apkeep/releases/download/1.0.0/apkeep-x86_64-pc-windows-msvc.exe"
+url_api = "https://api.github.com/repos/EFForg/apkeep/releases/assets/408633938"
+
 [[tools.apkid]]
 version = "3.1.0"
 backend = "pipx:apkid"
@@ -146,13 +176,15 @@ url_api = "https://api.github.com/repos/pxb1988/dex2jar/releases/assets/12884169
 url = "https://github.com/pxb1988/dex2jar/releases/download/v2.4/dex-tools-v2.4.zip"
 url_api = "https://api.github.com/repos/pxb1988/dex2jar/releases/assets/128841692"
 
+[[tools.esptool]]
+version = "5.4.0"
+backend = "pipx:esptool"
+specifiers = ["latest"]
+
 [[tools.floss]]
 version = "3.1.1"
 backend = "github:mandiant/flare-floss"
 specifiers = ["latest"]
-
-[tools.floss.options]
-matching = "linux"
 
 [tools.floss."platforms.linux-arm64"]
 url = "https://github.com/mandiant/flare-floss/releases/download/v3.1.1/floss-v3.1.1-linux.zip"
@@ -169,6 +201,18 @@ url_api = "https://api.github.com/repos/mandiant/flare-floss/releases/assets/195
 [tools.floss."platforms.linux-x64-musl"]
 url = "https://github.com/mandiant/flare-floss/releases/download/v3.1.1/floss-v3.1.1-linux.zip"
 url_api = "https://api.github.com/repos/mandiant/flare-floss/releases/assets/195078112"
+
+[tools.floss."platforms.macos-arm64"]
+url = "https://github.com/mandiant/flare-floss/releases/download/v3.1.1/floss-v3.1.1-macos.zip"
+url_api = "https://api.github.com/repos/mandiant/flare-floss/releases/assets/195078110"
+
+[tools.floss."platforms.macos-x64"]
+url = "https://github.com/mandiant/flare-floss/releases/download/v3.1.1/floss-v3.1.1-macos.zip"
+url_api = "https://api.github.com/repos/mandiant/flare-floss/releases/assets/195078110"
+
+[tools.floss."platforms.windows-x64"]
+url = "https://github.com/mandiant/flare-floss/releases/download/v3.1.1/floss-v3.1.1-windows.zip"
+url_api = "https://api.github.com/repos/mandiant/flare-floss/releases/assets/195078094"
 
 [[tools.frida-tools]]
 version = "14.10.4"
@@ -860,13 +904,49 @@ checksum = "sha256:284339b5b86f2b11496137d97b6705bb2ef27e64f21527c1ba240bdb6177b
 url = "https://github.com/vi/websocat/releases/download/v1.14.1/websocat.x86_64-pc-windows-gnu.exe"
 url_api = "https://api.github.com/repos/vi/websocat/releases/assets/333370392"
 
+[[tools.xtensa-esp-elf]]
+version = "esp-16.1.0_20260609"
+backend = "github:espressif/crosstool-NG"
+specifiers = ["latest"]
+
+[tools.xtensa-esp-elf.options]
+matching = "xtensa-esp-elf"
+matching_regex = '(x86_64|aarch64)-(linux-gnu|apple-darwin)\.tar\.xz$'
+
+[tools.xtensa-esp-elf."platforms.linux-arm64"]
+checksum = "sha256:785ee242bfbdb3ac4e764e85d2f87109c7c5f3da57d742da9a7c58c0d0906149"
+url = "https://github.com/espressif/crosstool-NG/releases/download/esp-16.1.0_20260609/xtensa-esp-elf-16.1.0_20260609-aarch64-linux-gnu.tar.xz"
+url_api = "https://api.github.com/repos/espressif/crosstool-NG/releases/assets/443371660"
+
+[tools.xtensa-esp-elf."platforms.linux-arm64-musl"]
+checksum = "sha256:785ee242bfbdb3ac4e764e85d2f87109c7c5f3da57d742da9a7c58c0d0906149"
+url = "https://github.com/espressif/crosstool-NG/releases/download/esp-16.1.0_20260609/xtensa-esp-elf-16.1.0_20260609-aarch64-linux-gnu.tar.xz"
+url_api = "https://api.github.com/repos/espressif/crosstool-NG/releases/assets/443371660"
+
+[tools.xtensa-esp-elf."platforms.linux-x64"]
+checksum = "sha256:f708752ebb35cab21f184b2574114ed1187619db0edb8a4ba913c06ca2fa675e"
+url = "https://github.com/espressif/crosstool-NG/releases/download/esp-16.1.0_20260609/xtensa-esp-elf-16.1.0_20260609-x86_64-linux-gnu.tar.xz"
+url_api = "https://api.github.com/repos/espressif/crosstool-NG/releases/assets/443370302"
+
+[tools.xtensa-esp-elf."platforms.linux-x64-musl"]
+checksum = "sha256:f708752ebb35cab21f184b2574114ed1187619db0edb8a4ba913c06ca2fa675e"
+url = "https://github.com/espressif/crosstool-NG/releases/download/esp-16.1.0_20260609/xtensa-esp-elf-16.1.0_20260609-x86_64-linux-gnu.tar.xz"
+url_api = "https://api.github.com/repos/espressif/crosstool-NG/releases/assets/443370302"
+
+[tools.xtensa-esp-elf."platforms.macos-arm64"]
+checksum = "sha256:be4eb81c12c9bbf6ead79c758bfa81b8e6ec9a695372f946ac924c70c32f273d"
+url = "https://github.com/espressif/crosstool-NG/releases/download/esp-16.1.0_20260609/xtensa-esp-elf-16.1.0_20260609-aarch64-apple-darwin.tar.xz"
+url_api = "https://api.github.com/repos/espressif/crosstool-NG/releases/assets/443370737"
+
+[tools.xtensa-esp-elf."platforms.macos-x64"]
+checksum = "sha256:c79d365223cec0e876fe0b25970a155ba9cddc2ee4130173944efe0ce1370d89"
+url = "https://github.com/espressif/crosstool-NG/releases/download/esp-16.1.0_20260609/xtensa-esp-elf-16.1.0_20260609-x86_64-apple-darwin.tar.xz"
+url_api = "https://api.github.com/repos/espressif/crosstool-NG/releases/assets/443371145"
+
 [[tools.yr]]
 version = "1.20.0"
 backend = "github:VirusTotal/yara-x"
 specifiers = ["latest"]
-
-[tools.yr.options]
-matching = "linux"
 
 [tools.yr."platforms.linux-arm64"]
 checksum = "sha256:c1d6f63a6fe55c17b5ddbfcb89d34599b737226a683ee492b12d92d1d541f304"
@@ -887,3 +967,18 @@ url_api = "https://api.github.com/repos/VirusTotal/yara-x/releases/assets/527452
 checksum = "sha256:cabb8df46492fff59c51261302c71ed9cb2cef393d3f0ca560801a34a8e24cbe"
 url = "https://github.com/VirusTotal/yara-x/releases/download/v1.20.0/yara-x-v1.20.0-x86_64-unknown-linux-gnu.tar.gz"
 url_api = "https://api.github.com/repos/VirusTotal/yara-x/releases/assets/527452366"
+
+[tools.yr."platforms.macos-arm64"]
+checksum = "sha256:33685a589133c5112611c06b66a14f759c8788347dc438795ec895b214e2897a"
+url = "https://github.com/VirusTotal/yara-x/releases/download/v1.20.0/yara-x-v1.20.0-aarch64-apple-darwin.tar.gz"
+url_api = "https://api.github.com/repos/VirusTotal/yara-x/releases/assets/527452371"
+
+[tools.yr."platforms.macos-x64"]
+checksum = "sha256:4d06b46eea0231897a4e3561148a95d5895f74286f6dfe5f9da90e0e4fd36007"
+url = "https://github.com/VirusTotal/yara-x/releases/download/v1.20.0/yara-x-v1.20.0-x86_64-apple-darwin.tar.gz"
+url_api = "https://api.github.com/repos/VirusTotal/yara-x/releases/assets/527452368"
+
+[tools.yr."platforms.windows-x64"]
+checksum = "sha256:b1e2840bac593aea353d2b2b341f5a862c9d61c0c406d9abbbad9e1fa35163a1"
+url = "https://github.com/VirusTotal/yara-x/releases/download/v1.20.0/yara-x-v1.20.0-x86_64-pc-windows-msvc.zip"
+url_api = "https://api.github.com/repos/VirusTotal/yara-x/releases/assets/527452367"

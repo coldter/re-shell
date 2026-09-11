@@ -43,6 +43,14 @@ Never leave tool output in the repo root or in ad-hoc directories outside these 
 
 The dev environment is defined in `mise.toml` and organized into tool categories (backends: `github:`, `aqua:`, `pipx:`, `npm:`, core runtimes). Python dependencies are declared in `pyproject.toml`, locked by `uv.lock`, and synced into the project `.venv` by `uv sync` (via `mise run setup-deps`). Ghidra's JDK is configured via `GHIDRA_JAVA_HOME`; the Ghidra install path is wired through `GHIDRA_INSTALL_DIR` for pyghidra.
 
+`mise.toml` is the single source of truth for both the toolchain and its environment:
+`[tool_alias]` maps friendly names to backends (`github:`, `aqua:`, `pipx:`, `npm:`, core
+runtimes), `[tools]` selects versions, and `[env]` supplies variables the tools need
+(`GHIDRA_JAVA_HOME`, `GHIDRA_INSTALL_DIR`, `PICO_SDK_PATH`). `mise install` materializes the
+toolchain in mise's shared store; `mise exec -- <cmd>` and `mise run <task>` run with the same
+toolchain and environment outside an activated shell, so there is no separate package output to
+install and no extra environment to set by hand.
+
 ## Installed Tools (General-Purpose)
 
 Discipline-specific tools are documented in their respective skill files. The tools below are available across all RE disciplines.
@@ -109,6 +117,15 @@ Control and bulk transfers need write access to `/dev/bus/usb/*`: run as root, o
 udev rule for the target VID:PID. Note that a vendor device often changes VID:PID when it
 switches USB modes, so match on all of the identities it can present.
 
+Pick the library by what owns the device. `pyusb` needs an interface no driver has claimed,
+which in practice means vendor-specific interfaces (`bInterfaceClass 0xff`). For anything the
+OS has a class driver for, go through that class instead: `hid` for HID devices, `serial` for
+CDC and Bluetooth SPP, `bleak` for BLE. On darwin that is not just a preference: libusb there
+implements no kernel-driver detach and there is no `usbfs`, so a claimed interface stays
+claimed, and darwin also exposes no USB traffic capture at all. Raw transfers to a
+class-claimed device, or any `usbmon`-style capture, mean passing the device through to a Linux
+VM.
+
 ### Password / Hash Cracking
 
 Wordlists and rules are exposed as a stable dir-of-symlinks at `wordlists/` in the repo root (gitignored). Sources live in `.mise/sources/` (fetched by `mise run setup-wordlists`) plus system-installed `hashcat`/`john` rules when present: `wordlists/rockyou.txt`, `wordlists/seclists/` (sparse SecLists tree), `wordlists/best64.rule`, `wordlists/hashcat-rules/`, `wordlists/john-rules/`, `wordlists/john-password.lst`. To add more, edit `sources.lock` and the related setup task in `mise.toml`.
@@ -156,6 +173,31 @@ takes under a second, proving the right one may not finish.
 | cmake | `cmake -B build` | Build system for pico-sdk projects |
 | gcc-arm-embedded | `arm-none-eabi-gcc` | ARM cross toolchain (`arm-none-eabi-{gcc,objcopy,gdb,...}`) |
 
+### Embedded / ESP32 (Espressif) Firmware
+
+esptool is v5, whose subcommands are hyphenated (`image-info`, not the v4
+`image_info`); most guides online still show the v4 spelling.
+
+| Tool | Command | Description |
+|------|---------|-------------|
+| esptool | `esptool image-info app.bin` | Parse an ESP32 image: chip target, entry point, segment table, SHA-256 and checksum, plus the app description (version string, IDF version, compile date) |
+| esptool | `esptool --chip esp32 elf2image app.elf` | Convert an ELF into the flashable image format; `image-info` reads it back |
+| espsecure | `espsecure signature-info-v2 app.bin` | Read an appended secure-boot v2 signature block without needing the key |
+| espsecure | `espsecure verify-signature -v 2 -k pub.pem app.bin` | Verify a secure-boot signature against a public key |
+| espefuse | `espefuse --port /dev/ttyUSB0 summary` | Read the eFuse block: secure boot and flash encryption state, key readout protection |
+
+`image-info`, `elf2image` and both `espsecure` commands above are pure file
+operations. Only `espefuse` and flash access need hardware in download mode.
+
+Xtensa is the reason the Espressif cross toolchain is in the shell. ESP32 and
+ESP32-S2/S3 are Xtensa LX6/LX7, which Ghidra cannot disassemble at all, and only the
+ESP32-C and -H parts are RISC-V. Arch's system `binutils` is host-only (x86 + BPF), so
+disassemble a raw flash dump with
+`xtensa-esp-elf-objdump -D -b binary -m xtensa flash.bin`; mise installs the toolchain
+from Espressif's crosstool-NG releases and also exposes the `xtensa-esp32-elf-`,
+`xtensa-esp32s2-elf-` and `xtensa-esp32s3-elf-` variants (objdump, gcc, g++). RISC-V,
+MIPS and AVR targets need their own cross-binutils and are not installed by default.
+
 ### Network Interception and Discovery
 
 | Tool | Command | Description |
@@ -178,7 +220,7 @@ unknown.
 |------|---------|-------------|
 | UPX | `upx -d packed.exe` | Decompress executables packed with UPX |
 | xxd | `xxd binary` | Hex dump / reverse hex dump utility |
-| binutils | `strings -n 8 file`, `nm`, `objdump`, `readelf` | Read strings, symbols, and ELF structure |
+| binutils | `strings -n 8 file`, `nm`, `objdump`, `readelf` | Read strings, symbols, and ELF structure. System binutils is host-only (x86 + BPF); the Espressif `xtensa-esp-elf-objdump` covers Xtensa (see [ESP32](#embedded--esp32-espressif-firmware)) |
 | exiftool | `exiftool file` | Read/write embedded metadata (images, documents, firmware) |
 | innoextract | `innoextract -e -d out setup.exe` | Extract Inno Setup installers (common packaging for vendor firmware update tools) |
 | asar | `asar extract app.asar tmp/app/` | Unpack Electron `app.asar` archives (`asar list` to inspect first) |
@@ -199,6 +241,9 @@ Python dependencies are managed via `pyproject.toml` and `uv.lock`, synced into 
 | SciPy | `import scipy` | Scientific computing (FFT, signal processing, optimization) |
 | Pillow | `from PIL import Image` | Image loading/manipulation (extracted textures, QR, framebuffers) |
 | pyusb | `import usb.core` | Raw USB control/bulk/interrupt transfers (see [USB](#usb) for the libusb backend) |
+| hidapi | `import hid` | HID report I/O through the OS HID stack (IOHIDManager on darwin, hidraw on Linux); works on devices the kernel has claimed |
+| pyserial | `import serial` | Serial I/O, including USB-CDC dongles and Bluetooth Classic SPP devices, which darwin exposes as `/dev/cu.*` |
+| bleak | `import bleak` | BLE GATT central: scan, connect, read/write/notify. The only route to BLE on darwin, where CoreBluetooth hides everything below GATT |
 | capstone | `import capstone` | Disassembler for x86, x64, ARM, ARM64, MIPS, and more; disassemble a few bytes without a Ghidra run |
 | cryptography | `from cryptography.hazmat.primitives.asymmetric...` | Signature and cipher primitives (Ed25519, ECDSA, RSA, AES) for firmware signature checks |
 
@@ -230,8 +275,7 @@ ghidra-analyzeHeadless tmp/ghidra_project ProjectName -import binary -postScript
 
 `pyghidra.start()` requires `GHIDRA_INSTALL_DIR` to point at the Ghidra install. The dev shell sets this automatically (along with `GHIDRA_JAVA_HOME`), so `import pyghidra; pyghidra.start()` works directly -- no manual `export GHIDRA_INSTALL_DIR=...` prefix needed.
 
-The shell also exports `_JAVA_OPTIONS=-Djava.io.tmpdir=$PWD/tmp/jtmp` (declared in `mise.toml` `[env]`), which moves JVM scratch files off the shared `/tmp` tmpfs and into `tmp/jtmp` (created by `mise run setup`).
-files off the shared `/tmp` tmpfs. Without it, `pyghidra.start()` fails on large programs. Every
+The shell also exports `_JAVA_OPTIONS=-Djava.io.tmpdir=$PWD/tmp/jtmp` (declared in `mise.toml` `[env]`), which moves JVM scratch files off the shared `/tmp` tmpfs and into `tmp/jtmp` (created by `mise run setup`). Without it, `pyghidra.start()` fails on large programs. Every
 `java` process prints a `Picked up _JAVA_OPTIONS:` line to stderr as a result; ignore it.
 
 One thing the shell cannot set for you: raise the Python recursion limit **before**
@@ -286,6 +330,13 @@ uv add protobuf
 # Sync the venv (run from the repo; also done by `mise run setup-deps`)
 mise run setup-deps
 ```
+
+`uv.lock` is resolved against one specific Python version, and `uv sync --locked` installs
+exactly the wheels named in it. The lock and the `python = "3.13"` pin in `mise.toml` are
+therefore coupled: bumping the Python minor version requires re-resolving `uv.lock`
+(`uv lock`) in the same change, or the locked wheels no longer match. On a wheel-only sync
+an under-declared sdist then fails to build. Revisit the pin only when upstream ships cp314
+wheels for yara-python and yara-python-dex (apkid dependency).
 
 For temporary/one-off usage without modifying the project, use `uv run`:
 

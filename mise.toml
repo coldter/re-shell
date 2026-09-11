@@ -19,6 +19,10 @@ payload-dumper-go = "github:ssut/payload-dumper-go"
 curl-impersonate = "github:lexiforest/curl-impersonate"
 yr = "github:VirusTotal/yara-x"
 rizin = "github:rizinorg/rizin"
+apkeep = "github:EFForg/apkeep"
+# Espressif Xtensa toolchain (objdump/gcc/gdb). Nix shipped all-targets binutils
+# instead, which has no portable mise equivalent; see CLAUDE.md ESP32 section.
+xtensa-esp-elf = "github:espressif/crosstool-NG"
 
 # PyPI applications (pipx uses uvx automatically when uv is installed)
 frida-tools = "pipx:frida-tools"
@@ -31,6 +35,7 @@ koodousfinder = "pipx:koodousfinder"
 volatility3 = "pipx:volatility3"
 httpie = "pipx:httpie"
 hid-tools = "pipx:hid-tools"
+esptool = "pipx:esptool"
 # binwalk: upstream ReFirmLabs/binwalk retagged v3.1.0 onto the Rust rewrite
 # (no Python packaging remains in-repo, PyPI has stale 2.1.0). Use the OS
 # package until the Rust v4 ships installable binaries; see MISE-MIGRATION.md §9.
@@ -58,18 +63,30 @@ uv = "latest"
 ghidra = "latest"
 jadx = "latest"
 dex2jar = "latest"
-pe-bear = { version = "latest", matching = "qt6.4.2_x64_linux" }
-floss = { version = "latest", matching = "linux" }
+# Linux only: not packaged for macOS (mirrors the upstream darwin gate).
+pe-bear = { version = "latest", matching = "qt6.4.2_x64_linux", os = ["linux"] }
+# floss/yr release per-OS assets, so no `matching`: GitHub autodetection picks
+# the right one on Linux and macOS alike.
+floss = "latest"
 payload-dumper-go = "latest"
 curl-impersonate = { version = "latest", matching_regex = "^curl-impersonate-v", prerelease = true }
-yr = { version = "latest", matching = "linux" }
-rizin = { version = "latest", matching = "-static-x86_64" }
+yr = "latest"
+# Linux only: the GitHub release publishes only rizin-macos-*.pkg installers.
+rizin = { version = "latest", matching = "-static-x86_64", os = ["linux"] }
+# Linux/Windows only: apkeep 1.0.0 publishes no macOS asset.
+apkeep = { version = "latest", os = ["linux", "windows"] }
+# Espressif crosstool-NG publishes per-OS assets; filter to the Xtensa
+# toolchain (not riscv32) and to the standard host triplets, skipping the
+# debug-sections and esp8266-multilib variants.
+xtensa-esp-elf = { version = "latest", matching = "xtensa-esp-elf", matching_regex = "(x86_64|aarch64)-(linux-gnu|apple-darwin)\\.tar\\.xz$" }
 grpcui = "latest"
 pup = "latest"
 protoc = "latest"
 grpcurl = "latest"
 websocat = "latest"
-upx = "latest"
+# Linux/Windows only: the aqua backend has no macOS asset (Homebrew builds it
+# from source on macOS).
+upx = { version = "latest", os = ["linux", "windows"] }
 cmake = "latest"
 gcc-arm-none-eabi = "latest"
 scrcpy = "latest"
@@ -85,7 +102,9 @@ quark-engine = { version = "latest", depends = ["uv", "python"] }
 koodousfinder = { version = "latest", depends = ["uv", "python"] }
 volatility3 = { version = "latest", depends = ["uv", "python"] }
 httpie = { version = "latest", depends = ["uv", "python"] }
-hid-tools = { version = "latest", depends = ["uv", "python"] }
+# Linux only: libevdev-backed (mirrors the upstream darwin gate).
+hid-tools = { version = "latest", depends = ["uv", "python"], os = ["linux"] }
+esptool = { version = "latest", depends = ["uv", "python"] }
 mitmproxy = { version = "latest", depends = ["uv", "python"] }
 
 # The npm backend gives each CLI its own mise-managed install.
